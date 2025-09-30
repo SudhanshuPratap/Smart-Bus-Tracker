@@ -1,0 +1,2261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Punjab Bus Tracker - Real Time Tracking</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: #000;
+            color: #333;
+            max-width: 430px;
+            margin: 0 auto;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100vh;
+            flex-direction: column;
+            background: #f8f9fa;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Status bar simulation */
+        .screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 44px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            z-index: 9999;
+        }
+        
+        .screen .header {
+            margin-top: 44px;
+        }
+        
+        .active {
+            display: flex;
+        }
+        /* Auth/Login Screen */
+        #login-screen {
+            background: #f8f9fa;
+        }
+        .auth-header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .auth-container { padding: 25px; }
+        .tab-switcher { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { padding: 12px 16px; border: none; border-radius: 12px; background: #e9ecef; color: #2c3e50; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .tab-btn.active { background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; box-shadow: 0 4px 10px rgba(255,107,107,0.3); }
+        .auth-form { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.05); }
+        .form-group { margin-bottom: 15px; }
+        .form-label { font-size: 14px; color: #6c757d; margin-bottom: 6px; display: block; }
+        .form-input, .form-select { padding: 14px 16px; border: none; border-radius: 14px; font-size: 16px; width: 100%; transition: all 0.3s; background: #f5f5f5; -webkit-appearance: none; appearance: none; }
+        .form-input:focus, .form-select:focus { outline: none; background: white; box-shadow: 0 0 0 4px rgba(255,107,107,0.15); transform: scale(1.01); }
+        .primary-btn { background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%); color: white; border: none; padding: 14px 16px; border-radius: 14px; cursor: pointer; font-weight: 700; width: 100%; font-size: 16px; box-shadow: 0 4px 15px rgba(255,107,107,0.35); transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
+        .primary-btn:active { transform: scale(0.98); box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3); }
+        /* Conductor Dashboard */
+        #conductor-screen .content { background: #f8f9fa; }
+        .card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: none; margin-bottom: 16px; }
+        .card-title { font-size: 18px; font-weight: 700; color: #2c3e50; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .muted { color: #6c757d; font-size: 13px; }
+        .inline { display: flex; align-items: center; gap: 10px; }
+        .danger-btn { background: #e74c3c; color: white; }
+        .success-btn { background: #2ecc71; color: white; }
+        .secondary-btn { background: #e9ecef; color: #2c3e50; }
+        /* Toast */
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.95); color: white; padding: 14px 24px; border-radius: 25px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); z-index: 10000; display: none; font-weight: 600; font-size: 14px; backdrop-filter: blur(10px); max-width: 80%; text-align: center; animation: toastSlideUp 0.3s ease-out; }
+        
+        @keyframes toastSlideUp {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+        
+        /* Launch Screen */
+        #launch-screen {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #launch-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23ffffff" fill-opacity="0.1" d="M0,96L48,112C96,128,192,160,288,186.7C384,213,480,235,576,213.3C672,192,768,128,864,128C960,128,1056,192,1152,192C1248,192,1344,128,1392,96L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>');
+            background-size: cover;
+            background-position: bottom;
+        }
+        
+        .app-logo {
+            width: 140px;
+            height: 140px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            z-index: 1;
+        }
+        
+        .app-logo i {
+            font-size: 70px;
+            color: white;
+        }
+        
+        .app-name {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            z-index: 1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .app-tagline {
+            font-size: 18px;
+            opacity: 0.9;
+            z-index: 1;
+            max-width: 80%;
+            margin: 0 auto;
+        }
+        
+        /* Route Selection Screen */
+        .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            padding: 20px 20px 25px 20px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0 0 25px 25px;
+        }
+        
+        .header-back-btn {
+            position: absolute;
+            left: 15px;
+            background: rgba(255,255,255,0.25);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .header-back-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23ffffff" fill-opacity="0.1" d="M0,96L48,112C96,128,192,160,288,186.7C384,213,480,235,576,213.3C672,192,768,128,864,128C960,128,1056,192,1152,192C1248,192,1344,128,1392,96L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>');
+            background-size: cover;
+            background-position: bottom;
+        }
+        
+        .header span {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 15px;
+            background: #f8f9fa;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .search-container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            border: none;
+        }
+        
+        .search-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .search-title i {
+            color: #ff6b6b;
+        }
+        
+        .search-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .search-input {
+            padding: 14px 18px 14px 48px;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            width: 100%;
+            transition: all 0.3s;
+            background: #f5f5f5;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.15);
+            transform: scale(1.01);
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 18px;
+        }
+        
+        .location-detect {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+            transition: all 0.3s;
+        }
+        
+        .location-detect:hover {
+            transform: translateY(-50%) scale(1.1);
+        }
+        
+        .search-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            border: none;
+            padding: 16px 20px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 700;
+            width: 100%;
+            font-size: 17px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .search-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3);
+        }
+        
+        .route-list {
+            list-style: none;
+            margin-top: 20px;
+        }
+        
+        .route-item {
+            padding: 18px;
+            border-bottom: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            background: white;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .route-item:active {
+            background: #fff5f5;
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.15);
+        }
+        
+        .route-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .route-number {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 20px;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+        }
+        
+        .route-destination {
+            font-weight: 600;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        
+        .route-details {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 5px;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .route-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .route-arrow {
+            color: #ff6b6b;
+            font-size: 18px;
+        }
+        
+        /* Map Screen */
+        .map-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .info-box {
+            position: absolute;
+            top: 60px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 18px;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            width: 260px;
+            z-index: 1000;
+            border: none;
+            backdrop-filter: blur(20px);
+        }
+        
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .bus-number {
+            font-weight: 700;
+            font-size: 20px;
+            color: #2c3e50;
+        }
+        
+        .info-button {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+            transition: all 0.3s;
+        }
+        
+        .info-button:hover {
+            transform: scale(1.1);
+        }
+        
+        .info-detail {
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .info-label {
+            color: #6c757d;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .info-value {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        .delay {
+            color: #e74c3c;
+        }
+        
+        .on-time {
+            color: #2ecc71;
+        }
+        
+        .back-button {
+            position: absolute;
+            top: 60px;
+            left: 15px;
+            background: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            cursor: pointer;
+            font-size: 18px;
+            color: #ff6b6b;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .back-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+        
+        /* Live Tracking Button */
+        .live-tracking-button {
+            position: absolute;
+            top: 115px;
+            left: 15px;
+            background: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            cursor: pointer;
+            font-size: 18px;
+            color: #e74c3c;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .live-tracking-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+        
+        .live-tracking-button.active {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        /* Bus Details Modal */
+        .modal {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: white;
+            width: 85%;
+            max-width: 450px;
+            border-radius: 25px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .close-button {
+            background: #f8f9fa;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 18px;
+            color: #6c757d;
+            transition: all 0.3s;
+        }
+        
+        .close-button:hover {
+            background: #e9ecef;
+            transform: scale(1.1);
+        }
+        
+        .detail-item {
+            margin-bottom: 20px;
+            display: flex;
+        }
+        
+        .detail-icon {
+            width: 40px;
+            color: #ff6b6b;
+            font-size: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 2px;
+        }
+        
+        .detail-text {
+            flex: 1;
+        }
+        
+        .detail-label {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        
+        .detail-value {
+            font-weight: 500;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        
+        /* Bus marker style */
+        .bus-marker {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            box-shadow: 0 6px 20px rgba(231,76,60,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: busMarkerPulse 2s infinite;
+        }
+        
+        @keyframes busMarkerPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 6px 20px rgba(231,76,60,0.5); }
+            50% { transform: scale(1.1); box-shadow: 0 8px 25px rgba(231,76,60,0.7); }
+        }
+        
+        /* Current location marker */
+        .current-location-marker {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border: 4px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            box-shadow: 0 6px 20px rgba(52,152,219,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: userMarkerPulse 1.5s infinite;
+        }
+        
+        @keyframes userMarkerPulse {
+            0%, 100% { box-shadow: 0 6px 20px rgba(52,152,219,0.6); }
+            50% { box-shadow: 0 6px 30px rgba(52,152,219,0.9), 0 0 0 10px rgba(52,152,219,0.2); }
+        }
+        
+        /* Source and destination markers */
+        .source-marker {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            border: 4px solid white;
+            border-radius: 50% 50% 50% 0;
+            width: 35px;
+            height: 35px;
+            box-shadow: 0 6px 20px rgba(46,204,113,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(-45deg);
+            animation: sourceMarkerBounce 1.5s ease-in-out infinite;
+        }
+        
+        .source-marker i {
+            transform: rotate(45deg);
+        }
+        
+        @keyframes sourceMarkerBounce {
+            0%, 100% { transform: rotate(-45deg) translateY(0); }
+            50% { transform: rotate(-45deg) translateY(-5px); }
+        }
+        
+        .destination-marker {
+            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+            border: 4px solid white;
+            border-radius: 50% 50% 50% 0;
+            width: 35px;
+            height: 35px;
+            box-shadow: 0 6px 20px rgba(230,126,34,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(-45deg);
+            animation: destMarkerWave 2s ease-in-out infinite;
+        }
+        
+        .destination-marker i {
+            transform: rotate(45deg);
+        }
+        
+        @keyframes destMarkerWave {
+            0%, 100% { transform: rotate(-45deg) scale(1); }
+            50% { transform: rotate(-45deg) scale(1.15); }
+        }
+        
+        /* Route selection buttons */
+        .route-controls {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 50%;
+            overflow-y: auto;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .route-btn {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            text-align: left;
+            background: #f8f9fa;
+            color: #2c3e50;
+        }
+        
+        .route-btn:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+        
+        .route-btn.active {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+        }
+        
+        /* Suggested routes */
+        .suggested-routes {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .suggested-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .suggested-title i {
+            color: #ff6b6b;
+        }
+        
+        .suggested-route {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid #ff6b6b;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+        
+        .suggested-route:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.15);
+        }
+        
+        .suggested-route-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .suggested-route-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 17px;
+        }
+        
+        .suggested-route-details {
+            color: #6c757d;
+            font-size: 14px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .suggested-route-select {
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+            transition: all 0.3s;
+            width: 100%;
+        }
+        
+        .suggested-route-select:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(255, 107, 107, 0.4);
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ff6b6b;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Location detection message */
+        .location-message {
+            margin-top: 15px;
+            padding: 12px 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .location-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .location-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        /* Stops list */
+        .stops-list {
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+        
+        .stop-item {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .stop-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stop-marker {
+            width: 10px;
+            height: 10px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+        
+        /* Live Tracking Status */
+        .live-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        .live-pulse {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .info-box {
+                width: 240px;
+                padding: 15px;
+            }
+            
+            .route-controls {
+                max-width: 200px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .content {
+                padding: 15px;
+            }
+            
+            .search-container {
+                padding: 20px;
+            }
+            
+            .info-box {
+                width: 220px;
+                right: 15px;
+                top: 15px;
+            }
+            
+            .back-button, .live-tracking-button {
+                left: 15px;
+                top: 15px;
+            }
+            
+            .live-tracking-button {
+                top: 80px;
+            }
+            
+            .route-controls {
+                left: 15px;
+                bottom: 15px;
+            }
+        }
+        
+        /* Landscape orientation optimizations */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .header {
+                padding: 15px 20px;
+                font-size: 18px;
+            }
+            
+            .header-back-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 16px;
+            }
+            
+            .content {
+                padding: 15px;
+            }
+            
+            .search-container {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            
+            .search-title {
+                font-size: 16px;
+                margin-bottom: 12px;
+            }
+            
+            .form-input, .form-select, .search-input {
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+            
+            .primary-btn, .search-btn {
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+            
+            .card {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            
+            .card-title {
+                font-size: 16px;
+                margin-bottom: 10px;
+            }
+            
+            .info-box {
+                top: 10px;
+                right: 10px;
+                width: 200px;
+                padding: 12px;
+                font-size: 13px;
+            }
+            
+            .bus-number {
+                font-size: 16px;
+            }
+            
+            .info-value {
+                font-size: 13px;
+            }
+            
+            .back-button, .live-tracking-button {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+                top: 10px;
+                left: 10px;
+            }
+            
+            .live-tracking-button {
+                top: 60px;
+            }
+            
+            .route-controls {
+                bottom: 10px;
+                left: 10px;
+                padding: 10px;
+                max-height: 40%;
+            }
+            
+            .route-btn {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+            
+            .modal-content {
+                max-height: 90vh;
+                padding: 20px;
+            }
+        }
+        
+        /* Portrait orientation optimizations */
+        @media (max-width: 480px) and (orientation: portrait) {
+            .app-logo {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .app-logo i {
+                font-size: 50px;
+            }
+            
+            .app-name {
+                font-size: 32px;
+            }
+            
+            .app-tagline {
+                font-size: 14px;
+            }
+            
+            .info-box {
+                position: fixed;
+                bottom: 80px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+                max-width: 100%;
+            }
+            
+            .route-controls {
+                max-height: 30%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Launch Screen -->
+    <div id="launch-screen" class="screen active">
+        <div class="app-logo">
+            <i class="fas fa-bus"></i>
+        </div>
+        <h1 class="app-name">Punjab Bus Tracker</h1>
+        <p class="app-tagline">Real-time bus tracking across Punjab & Chandigarh</p>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen">
+        <div class="auth-header"><span>Sign In</span></div>
+        <div class="auth-container">
+            <div class="tab-switcher">
+                <button class="tab-btn active" id="tab-user">User</button>
+                <button class="tab-btn" id="tab-conductor">Conductor</button>
+            </div>
+
+            <!-- User login -->
+            <div class="auth-form" id="user-form">
+                <div class="form-group">
+                    <label class="form-label" for="user-mobile">Mobile Number</label>
+                    <input type="tel" id="user-mobile" class="form-input" placeholder="Enter 10-digit mobile" maxlength="10" inputmode="numeric" />
+                </div>
+                <button class="primary-btn" id="user-login">Continue</button>
+                <div class="muted" style="margin-top:10px;">Normal users sign in with mobile number to plan journeys.</div>
+            </div>
+
+            <!-- Conductor login -->
+            <div class="auth-form" id="conductor-form" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label" for="conductor-username">Username</label>
+                    <input type="text" id="conductor-username" class="form-input" placeholder="e.g. conductor101" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="conductor-password">Password</label>
+                    <input type="password" id="conductor-password" class="form-input" placeholder="Enter password" />
+                </div>
+                <button class="primary-btn" id="conductor-login">Sign In</button>
+                <div class="muted" style="margin-top:10px;">Conductors use username and password to manage trips.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Route Selection Screen -->
+    <div id="route-screen" class="screen">
+        <div class="header">
+            <button class="header-back-btn" id="route-back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <span>Punjab Bus Routes</span>
+        </div>
+        <div class="content">
+            <div class="search-container">
+                <div class="search-title">
+                    <i class="fas fa-route"></i>
+                    Plan Your Journey
+                </div>
+                <div class="search-input-group">
+                    <div class="input-with-icon">
+                        <div class="input-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <select class="search-input form-select" id="source-input">
+                            <option value="">Select source</option>
+                        </select>
+                        <div class="location-detect" id="detect-location">
+                            <i class="fas fa-location-arrow"></i>
+                        </div>
+                    </div>
+                    <div class="input-with-icon">
+                        <div class="input-icon">
+                            <i class="fas fa-flag"></i>
+                        </div>
+                        <select class="search-input form-select" id="destination-input">
+                            <option value="">Select destination</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="location-message" class="location-message"></div>
+                <button class="search-btn" id="search-journey">
+                    <i class="fas fa-search"></i> Find Live Routes
+                    <div class="spinner" id="search-spinner"></div>
+                </button>
+            </div>
+            
+            <div class="suggested-routes" id="suggested-routes">
+                <div class="suggested-title">
+                    <i class="fas fa-bus"></i>
+                    Available Live Routes
+                </div>
+                <!-- Routes will be populated by JavaScript -->
+            </div>
+            
+            <div class="popular-routes">
+                <div class="search-title">
+                    <i class="fas fa-bolt"></i>
+                    Popular Live Routes
+                </div>
+                <ul class="route-list" id="punjab-routes">
+                    <!-- Routes will be populated by JavaScript -->
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Screen -->
+    <div id="map-screen" class="screen">
+        <div class="back-button" id="back-button">
+            <i class="fas fa-arrow-left"></i>
+        </div>
+        
+        <div class="live-tracking-button" id="live-tracking-button">
+            <i class="fas fa-satellite-dish"></i>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <div class="info-box">
+                <div class="info-header">
+                    <div class="bus-number">Bus #<span id="bus-number">101</span></div>
+                    <div class="info-button" id="info-button">
+                        <i class="fas fa-info"></i>
+                    </div>
+                </div>
+                <div class="info-detail">
+                    <span class="info-label">
+                        <i class="fas fa-clock"></i>
+                        Arrival:
+                    </span>
+                    <span class="info-value" id="arrival-time">8 min</span>
+                </div>
+                <div class="info-detail">
+                    <span class="info-label">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Speed:
+                    </span>
+                    <span class="info-value" id="bus-speed">45 km/h</span>
+                </div>
+                <div class="info-detail">
+                    <span class="info-label">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Next Stop:
+                    </span>
+                    <span class="info-value" id="next-stop">ISBT Chandigarh</span>
+                </div>
+                <div class="live-status">
+                    <div class="live-pulse"></div>
+                    LIVE TRACKING ACTIVE
+                </div>
+            </div>
+            
+            <div class="route-controls" id="route-controls">
+                <!-- Route buttons will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Conductor Dashboard Screen -->
+    <div id="conductor-screen" class="screen">
+        <div class="header">
+            <button class="header-back-btn" id="conductor-back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <span>Conductor Dashboard</span>
+        </div>
+        <div class="content">
+            <div class="card">
+                <div class="card-title"><i class="fas fa-ticket-alt"></i> Trip Controls</div>
+                <div class="row">
+                    <div class="form-group">
+                        <label class="form-label" for="passenger-count">Passengers</label>
+                        <input type="number" id="passenger-count" class="form-input" min="0" placeholder="Enter count" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ride Status</label>
+                        <button class="primary-btn" id="ride-toggle">Start Ride</button>
+                    </div>
+                </div>
+                <div class="muted">Update passenger count anytime during the trip.</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><i class="fas fa-clock"></i> Delay Report</div>
+                <div class="form-group">
+                    <label class="form-label" for="delay-mins">Delay (minutes)</label>
+                    <input type="number" id="delay-mins" class="form-input" min="0" placeholder="e.g. 10" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="delay-reason">Reason (optional)</label>
+                    <input type="text" id="delay-reason" class="form-input" placeholder="Traffic, breakdown, weather..." />
+                </div>
+                <button class="secondary-btn primary-btn" id="report-delay">Report Delay</button>
+            </div>
+
+            <div class="card">
+                <div class="inline">
+                    <button class="secondary-btn primary-btn" id="conductor-to-map"><i class="fas fa-map"></i> View Map</button>
+                    <button class="secondary-btn primary-btn" id="conductor-logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bus Details Modal -->
+    <div class="modal" id="bus-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Bus #<span id="modal-bus-number">101</span> Details</div>
+                <div class="close-button" id="close-modal">
+                    <i class="fas fa-times"></i>
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <i class="fas fa-route"></i>
+                </div>
+                <div class="detail-text">
+                    <div class="detail-label">Route</div>
+                    <div class="detail-value" id="modal-route">ISBT Chandigarh to Amritsar</div>
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="detail-text">
+                    <div class="detail-label">Driver</div>
+                    <div class="detail-value" id="modal-driver">Rajesh Kumar</div>
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <i class="fas fa-id-card"></i>
+                </div>
+                <div class="detail-text">
+                    <div class="detail-label">Bus ID</div>
+                    <div class="detail-value" id="modal-bus-id">PB07-B-101</div>
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="detail-text">
+                    <div class="detail-label">Last Update</div>
+                    <div class="detail-value" id="modal-update">Just now</div>
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <div class="detail-text">
+                    <div class="detail-label">Current Speed</div>
+                    <div class="detail-value" id="modal-speed">45 km/h</div>
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <i class="fas fa-bus"></i>
+                </div>
+                <div class="detail-text">
+                    <div class="detail-label">Bus Type</div>
+                    <div class="detail-value" id="modal-type">Volvo AC</div>
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="detail-text">
+                    <div class="detail-label">Capacity</div>
+                    <div class="detail-value" id="modal-capacity">40 Seats</div>
+                </div>
+            </div>
+            
+            <div class="detail-item">
+                <div class="detail-icon">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div class="detail-text">
+                    <div class="detail-label">Major Stops</div>
+                    <div class="stops-list" id="modal-stops">
+                        <!-- Stops will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Simulate launch screen delay
+        setTimeout(() => {
+            document.getElementById('launch-screen').classList.remove('active');
+            document.getElementById('login-screen').classList.add('active');
+        }, 3000);
+        
+        // Initialize map
+        let map, currentRoute, busMarker, routePolyline, currentLocationMarker, sourceMarker, destinationMarker;
+        let isMapInitialized = false;
+        let userLocation = null;
+        let selectedSource = null;
+        let selectedDestination = null;
+        let isLiveTracking = false;
+        let isRideActive = false; // Conductor ride status
+        let currentUserType = null; // 'user' | 'conductor'
+        let busAnimationInterval = null;
+        let conductorState = { passengerCount: 0, delayMins: 0, delayReason: '' }; // Persist conductor data
+        let currentOrientation = window.orientation || (window.innerWidth > window.innerHeight ? 90 : 0);
+        
+        // Punjab & Chandigarh bus routes data
+        const punjabRoutes = {
+            chandigarhAmritsar: {
+                name: "ISBT Chandigarh → Golden Temple Amritsar",
+                busNumber: "101",
+                coordinates: [
+                    [30.7333, 76.7794], // Chandigarh
+                    [30.7046, 76.7179], // Mohali
+                    [30.6920, 76.7270], // Kharar
+                    [30.7280, 76.7830], // Landran
+                    [30.9010, 75.8573], // Ludhiana
+                    [31.2170, 75.7690], // Phagwara
+                    [31.3260, 75.5760], // Jalandhar
+                    [31.6340, 75.4310], // Kapurthala
+                    [31.6330, 75.1390], // Beas
+                    [31.6340, 75.1390], // Amritsar
+                ],
+                stops: ["ISBT Chandigarh", "Mohali", "Kharar", "Landran", "Ludhiana", "Phagwara", "Jalandhar", "Kapurthala", "Beas", "Golden Temple Amritsar"],
+                distance: "240 km",
+                time: "4 hours 30 minutes",
+                fare: "₹450",
+                frequency: "Every 30 minutes",
+                firstBus: "5:00 AM",
+                lastBus: "10:00 PM",
+                busType: "Volvo AC",
+                capacity: "40 Seats"
+            },
+            chandigarhJalandhar: {
+                name: "ISBT Chandigarh → Jalandhar",
+                busNumber: "102",
+                coordinates: [
+                    [30.7333, 76.7794], // Chandigarh
+                    [30.7046, 76.7179], // Mohali
+                    [30.6920, 76.7270], // Kharar
+                    [30.9010, 75.8573], // Ludhiana
+                    [31.3260, 75.5760], // Jalandhar
+                ],
+                stops: ["ISBT Chandigarh", "Mohali", "Kharar", "Ludhiana", "Jalandhar Bus Stand"],
+                distance: "150 km",
+                time: "3 hours",
+                fare: "₹280",
+                frequency: "Every 20 minutes",
+                firstBus: "5:30 AM",
+                lastBus: "9:30 PM",
+                busType: "AC Semi-Sleeper",
+                capacity: "35 Seats"
+            },
+            chandigarhLudhiana: {
+                name: "ISBT Chandigarh → Ludhiana",
+                busNumber: "103",
+                coordinates: [
+                    [30.7333, 76.7794], // Chandigarh
+                    [30.7046, 76.7179], // Mohali
+                    [30.6920, 76.7270], // Kharar
+                    [30.9010, 75.8573], // Ludhiana
+                ],
+                stops: ["ISBT Chandigarh", "Mohali", "Kharar", "Ludhiana Bus Stand"],
+                distance: "100 km",
+                time: "2 hours 15 minutes",
+                fare: "₹180",
+                frequency: "Every 15 minutes",
+                firstBus: "5:00 AM",
+                lastBus: "10:30 PM",
+                busType: "Non-AC",
+                capacity: "40 Seats"
+            },
+            chandigarhPathankot: {
+                name: "ISBT Chandigarh → Pathankot",
+                busNumber: "104",
+                coordinates: [
+                    [30.7333, 76.7794], // Chandigarh
+                    [30.9010, 75.8573], // Ludhiana
+                    [31.3260, 75.5760], // Jalandhar
+                    [31.6340, 75.4310], // Kapurthala
+                    [32.2680, 75.6490], // Pathankot
+                ],
+                stops: ["ISBT Chandigarh", "Ludhiana", "Jalandhar", "Kapurthala", "Pathankot"],
+                distance: "280 km",
+                time: "5 hours",
+                fare: "₹520",
+                frequency: "Every 1 hour",
+                firstBus: "6:00 AM",
+                lastBus: "8:00 PM",
+                busType: "AC Sleeper",
+                capacity: "30 Seats"
+            },
+            chandigarhPatiala: {
+                name: "ISBT Chandigarh → Patiala",
+                busNumber: "105",
+                coordinates: [
+                    [30.7333, 76.7794], // Chandigarh
+                    [30.6920, 76.7270], // Kharar
+                    [30.7360, 76.7880], // Zirakpur
+                    [30.6980, 76.8510], // Rajpura
+                    [30.3398, 76.3869], // Patiala
+                ],
+                stops: ["ISBT Chandigarh", "Kharar", "Zirakpur", "Rajpura", "Patiala Bus Stand"],
+                distance: "65 km",
+                time: "1 hour 30 minutes",
+                fare: "₹120",
+                frequency: "Every 10 minutes",
+                firstBus: "5:00 AM",
+                lastBus: "11:00 PM",
+                busType: "Mini Bus",
+                capacity: "25 Seats"
+            }
+        };
+
+        // Build unique stops and populate dropdowns
+        function getAllUniqueStops() {
+            const set = new Set();
+            Object.values(punjabRoutes).forEach(r => r.stops.forEach(s => set.add(s)));
+            return Array.from(set);
+        }
+
+        function populateLocationDropdowns() {
+            const src = document.getElementById('source-input');
+            const dst = document.getElementById('destination-input');
+            if (!src || !dst) return;
+            const stops = getAllUniqueStops();
+            const build = (el, placeholder) => {
+                el.innerHTML = '';
+                const ph = document.createElement('option');
+                ph.value = '';
+                ph.textContent = placeholder;
+                el.appendChild(ph);
+                stops.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s; opt.textContent = s; el.appendChild(opt);
+                });
+            };
+            build(src, 'Select source');
+            build(dst, 'Select destination');
+        }
+        
+        // Populate Punjab routes on page load
+        function populatePunjabRoutes() {
+            const routesList = document.getElementById('punjab-routes');
+            const suggestedRoutes = document.getElementById('suggested-routes');
+            const routeControls = document.getElementById('route-controls');
+            
+            // Clear existing content
+            routesList.innerHTML = '';
+            suggestedRoutes.innerHTML = '<div class="suggested-title"><i class="fas fa-bus"></i>Available Live Routes</div>';
+            routeControls.innerHTML = '';
+            
+            // Add routes to popular routes list
+            for (const [key, route] of Object.entries(punjabRoutes)) {
+                // Popular routes list
+                const li = document.createElement('li');
+                li.className = 'route-item';
+                li.setAttribute('data-route', key);
+                li.innerHTML = `
+                    <div class="route-info">
+                        <div class="route-number">${route.busNumber}</div>
+                        <div>
+                            <div class="route-destination">${route.name}</div>
+                            <div class="route-details">
+                                <span class="route-detail-item">
+                                    <i class="fas fa-road"></i> ${route.distance}
+                                </span>
+                                <span class="route-detail-item">
+                                    <i class="fas fa-clock"></i> ${route.time}
+                                </span>
+                                <span class="route-detail-item">
+                                    <i class="fas fa-indian-rupee-sign"></i> ${route.fare}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="route-arrow"><i class="fas fa-chevron-right"></i></div>
+                `;
+                routesList.appendChild(li);
+                
+                // Suggested routes
+                const suggestedRoute = document.createElement('div');
+                suggestedRoute.className = 'suggested-route';
+                suggestedRoute.innerHTML = `
+                    <div class="suggested-route-header">
+                        <div class="suggested-route-name">${route.name}</div>
+                        <div class="route-number">${route.busNumber}</div>
+                    </div>
+                    <div class="suggested-route-details">
+                        <div><i class="fas fa-road"></i> Distance: ${route.distance}</div>
+                        <div><i class="fas fa-clock"></i> Time: ${route.time}</div>
+                        <div><i class="fas fa-indian-rupee-sign"></i> Fare: ${route.fare}</div>
+                        <div><i class="fas fa-sync-alt"></i> Frequency: ${route.frequency}</div>
+                    </div>
+                    <button class="suggested-route-select" data-route="${key}">
+                        <i class="fas fa-satellite-dish"></i> Track Live
+                    </button>
+                `;
+                suggestedRoutes.appendChild(suggestedRoute);
+                
+                // Route controls for map screen
+                const routeBtn = document.createElement('button');
+                routeBtn.className = 'route-btn';
+                routeBtn.setAttribute('data-route', key);
+                routeBtn.textContent = `${route.busNumber}: ${route.name.split('→')[1].trim()}`;
+                routeControls.appendChild(routeBtn);
+            }
+            
+            // Add event listeners to new elements
+            addRouteEventListeners();
+        }
+        
+        function initMap(routeKey) {
+            if (!isMapInitialized) {
+                map = L.map('map').setView([30.7333, 76.7794], 9); // Center on Chandigarh
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+                isMapInitialized = true;
+            }
+            
+            // Clear existing route and marker if any
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+            }
+            if (busMarker) {
+                map.removeLayer(busMarker);
+            }
+            if (sourceMarker) {
+                map.removeLayer(sourceMarker);
+            }
+            if (destinationMarker) {
+                map.removeLayer(destinationMarker);
+            }
+            
+            // Clear any existing animation
+            if (busAnimationInterval) {
+                clearInterval(busAnimationInterval);
+            }
+            
+            const route = punjabRoutes[routeKey];
+            currentRoute = route;
+            
+            // Draw the route
+            routePolyline = L.polyline(route.coordinates, {color: '#ff6b6b', weight: 6, opacity: 0.8}).addTo(map);
+            
+            // Fit map to show the entire route
+            map.fitBounds(routePolyline.getBounds());
+            
+            // Add bus marker with enhanced styling
+            busMarker = L.marker(route.coordinates[1], {
+                icon: L.divIcon({
+                    html: '<div class="bus-marker"><i class="fas fa-bus" style="color: white; font-size: 20px;"></i></div>',
+                    className: '',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                })
+            }).addTo(map);
+            busMarker.bindPopup(`
+                <div style="text-align: center; padding: 5px;">
+                    <div style="font-size: 18px; font-weight: bold; color: #e74c3c; margin-bottom: 5px;">
+                        <i class="fas fa-bus"></i> Bus ${route.busNumber}
+                    </div>
+                    <div style="font-size: 13px; color: #555; margin-bottom: 8px;">${route.name}</div>
+                    <div style="background: #e74c3c; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                        <i class="fas fa-satellite-dish"></i> LIVE TRACKING
+                    </div>
+                </div>
+            `).openPopup();
+            
+            // Add source marker with enhanced styling
+            sourceMarker = L.marker(route.coordinates[0], {
+                icon: L.divIcon({
+                    html: '<div class="source-marker"><i class="fas fa-map-marker-alt" style="color: white; font-size: 18px;"></i></div>',
+                    className: '',
+                    iconSize: [35, 35],
+                    iconAnchor: [17, 35]
+                })
+            }).addTo(map);
+            sourceMarker.bindPopup(`
+                <div style="text-align: center; padding: 5px;">
+                    <div style="font-size: 14px; font-weight: bold; color: #2ecc71; margin-bottom: 3px;">
+                        <i class="fas fa-play-circle"></i> Starting Point
+                    </div>
+                    <div style="font-size: 13px; color: #555;">${route.stops[0]}</div>
+                </div>
+            `);
+            
+            destinationMarker = L.marker(route.coordinates[route.coordinates.length-1], {
+                icon: L.divIcon({
+                    html: '<div class="destination-marker"><i class="fas fa-flag-checkered" style="color: white; font-size: 18px;"></i></div>',
+                    className: '',
+                    iconSize: [35, 35],
+                    iconAnchor: [17, 35]
+                })
+            }).addTo(map);
+            destinationMarker.bindPopup(`
+                <div style="text-align: center; padding: 5px;">
+                    <div style="font-size: 14px; font-weight: bold; color: #e67e22; margin-bottom: 3px;">
+                        <i class="fas fa-flag-checkered"></i> Destination
+                    </div>
+                    <div style="font-size: 13px; color: #555;">${route.stops[route.stops.length-1]}</div>
+                </div>
+            `);
+            
+            // Add user location marker if available
+            if (userLocation) {
+                if (currentLocationMarker) {
+                    map.removeLayer(currentLocationMarker);
+                }
+                currentLocationMarker = L.marker([userLocation.latitude, userLocation.longitude], {
+                    icon: L.divIcon({
+                        html: '<div class="current-location-marker"><i class="fas fa-user" style="color: white; font-size: 16px;"></i></div>',
+                        className: '',
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    })
+                }).addTo(map);
+                
+                // Add popup to user location
+                currentLocationMarker.bindPopup(`
+                    <div style="text-align: center; padding: 5px;">
+                        <div style="font-size: 14px; font-weight: bold; color: #3498db;">
+                            <i class="fas fa-user-circle"></i> Your Location
+                        </div>
+                    </div>
+                `);
+            }
+            
+            // Add markers for each stop with enhanced styling
+            route.coordinates.forEach((coord, index) => {
+                if (index > 0 && index < route.coordinates.length - 1) {
+                    const stopMarker = L.marker(coord, {
+                        icon: L.divIcon({
+                            html: `
+                                <div style="
+                                    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+                                    border: 3px solid white;
+                                    border-radius: 50%;
+                                    width: 24px;
+                                    height: 24px;
+                                    box-shadow: 0 4px 12px rgba(255,107,107,0.5);
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                ">
+                                    <i class="fas fa-circle" style="color: white; font-size: 8px;"></i>
+                                </div>
+                            `,
+                            className: '',
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                        })
+                    }).addTo(map);
+                    stopMarker.bindPopup(`
+                        <div style="text-align: center; padding: 5px;">
+                            <div style="font-size: 13px; font-weight: bold; color: #ff6b6b; margin-bottom: 3px;">
+                                <i class="fas fa-map-pin"></i> Stop ${index}
+                            </div>
+                            <div style="font-size: 12px; color: #555;">${route.stops[index]}</div>
+                        </div>
+                    `);
+                }
+            });
+            
+            // Update info box
+            document.getElementById('bus-number').textContent = route.busNumber;
+            document.getElementById('arrival-time').textContent = calculateArrivalTime(route.coordinates, 1);
+            document.getElementById('bus-speed').textContent = `${Math.floor(Math.random() * 15) + 40} km/h`;
+            document.getElementById('next-stop').textContent = route.stops[2];
+            
+            // Update modal info
+            document.getElementById('modal-bus-number').textContent = route.busNumber;
+            document.getElementById('modal-route').textContent = route.name;
+            document.getElementById('modal-driver').textContent = getRandomDriver();
+            document.getElementById('modal-bus-id').textContent = `PB07-B-${route.busNumber}`;
+            document.getElementById('modal-update').textContent = 'Just now';
+            document.getElementById('modal-speed').textContent = document.getElementById('bus-speed').textContent;
+            document.getElementById('modal-type').textContent = route.busType;
+            document.getElementById('modal-capacity').textContent = route.capacity;
+            
+            // Update stops list in modal
+            const stopsList = document.getElementById('modal-stops');
+            stopsList.innerHTML = '';
+            route.stops.forEach(stop => {
+                const stopItem = document.createElement('div');
+                stopItem.className = 'stop-item';
+                stopItem.innerHTML = `
+                    <div class="stop-marker"></div>
+                    <span>${stop}</span>
+                `;
+                stopsList.appendChild(stopItem);
+            });
+            
+            // Highlight active route button
+            document.querySelectorAll('.route-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-route') === routeKey) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Start live tracking animation
+            startLiveTracking(route.coordinates);
+        }
+        
+        function calculateArrivalTime(coordinates, currentIndex) {
+            const remainingPoints = coordinates.length - currentIndex;
+            return `${Math.round(remainingPoints * 3.5)} min`;
+        }
+        
+        function startLiveTracking(coordinates) {
+            let index = 1; // Start from position 1
+            const totalPoints = coordinates.length;
+            
+            // Clear any existing interval
+            if (busAnimationInterval) {
+                clearInterval(busAnimationInterval);
+            }
+            
+            busAnimationInterval = setInterval(() => {
+                if (index < totalPoints - 1) {
+                    index++;
+                    const newLatLng = coordinates[index];
+                    busMarker.setLatLng(newLatLng);
+                    
+                    // Update arrival time
+                    document.getElementById('arrival-time').textContent = calculateArrivalTime(coordinates, index);
+                    
+                    // Update speed (random variation)
+                    const currentSpeed = Math.floor(Math.random() * 15) + 40;
+                    document.getElementById('bus-speed').textContent = `${currentSpeed} km/h`;
+                    document.getElementById('modal-speed').textContent = `${currentSpeed} km/h`;
+                    
+                    // Update next stop
+                    if (index < currentRoute.stops.length - 1) {
+                        document.getElementById('next-stop').textContent = currentRoute.stops[index + 1];
+                    }
+                    
+                    // Update last update time
+                    document.getElementById('modal-update').textContent = 'Just now';
+                    
+                } else {
+                    // Reset bus to start after reaching destination
+                    setTimeout(() => {
+                        index = 1;
+                        busMarker.setLatLng(coordinates[index]);
+                        document.getElementById('arrival-time').textContent = calculateArrivalTime(coordinates, index);
+                        document.getElementById('next-stop').textContent = currentRoute.stops[2];
+                    }, 5000);
+                }
+            }, 2000); // Update every 2 seconds for real-time feel
+        }
+        
+        function toggleLiveTracking() {
+            isLiveTracking = !isLiveTracking;
+            const button = document.getElementById('live-tracking-button');
+            
+            if (isLiveTracking) {
+                button.classList.add('active');
+                button.innerHTML = '<i class="fas fa-satellite"></i>';
+                showToast('Live tracking turned ON');
+                // In a real app, this would connect to live GPS feed
+            } else {
+                button.classList.remove('active');
+                button.innerHTML = '<i class="fas fa-satellite-dish"></i>';
+                showToast('Live tracking turned OFF');
+            }
+        }
+        
+        function getRandomDriver() {
+            const drivers = ['Rajesh Kumar', 'Anil Sharma', 'Vikram Singh', 'Sanjay Gupta', 'Mohan Lal', 'Harpreet Singh'];
+            return drivers[Math.floor(Math.random() * drivers.length)];
+        }
+
+        // Toast helper
+        function showToast(message) {
+            let toast = document.getElementById('app-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'app-toast';
+                toast.className = 'toast';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.style.display = 'block';
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(() => { toast.style.display = 'none'; }, 2500);
+        }
+        
+        // Detect user's current location
+        function detectLocation() {
+            const locationMessage = document.getElementById('location-message');
+            const detectButton = document.getElementById('detect-location');
+            
+            locationMessage.style.display = 'none';
+            detectButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            if (!navigator.geolocation) {
+                locationMessage.textContent = "Geolocation is not supported by your browser";
+                locationMessage.className = 'location-message location-error';
+                locationMessage.style.display = 'block';
+                detectButton.innerHTML = '<i class="fas fa-location-arrow"></i>';
+                return;
+            }
+            
+            function success(position) {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                
+                userLocation = {
+                    latitude: latitude,
+                    longitude: longitude
+                };
+                
+                // Use OpenStreetMap Nominatim API for reverse geocoding
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const address = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                        const srcSel = document.getElementById('source-input');
+                        // Add a dynamic option for current location and select it
+                        let opt = srcSel.querySelector('option[data-dynamic="1"]');
+                        if (!opt) {
+                            opt = document.createElement('option');
+                            opt.setAttribute('data-dynamic', '1');
+                            srcSel.insertBefore(opt, srcSel.firstChild);
+                        }
+                        opt.textContent = `Your location: ${address}`;
+                        opt.value = address;
+                        srcSel.value = address;
+                        
+                        locationMessage.textContent = "Location detected successfully!";
+                        locationMessage.className = 'location-message location-success';
+                        locationMessage.style.display = 'block';
+                    })
+                    .catch(error => {
+                        const srcSel = document.getElementById('source-input');
+                        let opt = srcSel.querySelector('option[data-dynamic="1"]');
+                        if (!opt) {
+                            opt = document.createElement('option');
+                            opt.setAttribute('data-dynamic', '1');
+                            srcSel.insertBefore(opt, srcSel.firstChild);
+                        }
+                        opt.textContent = `Your location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                        opt.value = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                        srcSel.value = opt.value;
+                        
+                        locationMessage.textContent = "Location detected (could not get address name)";
+                        locationMessage.className = 'location-message location-success';
+                        locationMessage.style.display = 'block';
+                    })
+                    .finally(() => {
+                        detectButton.innerHTML = '<i class="fas fa-location-arrow"></i>';
+                    });
+            }
+            
+            function error() {
+                locationMessage.textContent = "Unable to retrieve your location. Please enter manually.";
+                locationMessage.className = 'location-message location-error';
+                locationMessage.style.display = 'block';
+                detectButton.innerHTML = '<i class="fas fa-location-arrow"></i>';
+            }
+            
+            navigator.geolocation.getCurrentPosition(success, error, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            });
+        }
+        
+        // Add event listeners
+        function addRouteEventListeners() {
+            // Add click event to route items
+            const routeItems = document.querySelectorAll('.route-item');
+            routeItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const route = item.getAttribute('data-route');
+                    document.getElementById('route-screen').classList.remove('active');
+                    document.getElementById('map-screen').classList.add('active');
+                    initMap(route);
+                });
+            });
+            
+            // Add click event to suggested route buttons
+            const suggestedRouteButtons = document.querySelectorAll('.suggested-route-select');
+            suggestedRouteButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const route = button.getAttribute('data-route');
+                    document.getElementById('route-screen').classList.remove('active');
+                    document.getElementById('map-screen').classList.add('active');
+                    initMap(route);
+                });
+            });
+            
+            // Add click event to route buttons on map
+            const routeButtons = document.querySelectorAll('.route-btn');
+            routeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const route = button.getAttribute('data-route');
+                    initMap(route);
+                });
+            });
+        }
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            populatePunjabRoutes();
+            populateLocationDropdowns();
+            
+            // Add event listeners
+            document.getElementById('detect-location').addEventListener('click', detectLocation);
+            
+            document.getElementById('search-journey').addEventListener('click', () => {
+                const source = document.getElementById('source-input').value;
+                const destination = document.getElementById('destination-input').value;
+                
+                if (source && destination) {
+                    // Filter routes that match source/destination
+                    const matchingRoutes = Object.entries(punjabRoutes).filter(([key, route]) => {
+                        return route.stops.includes(source) && route.stops.includes(destination);
+                    });
+                    
+                    const suggestedContainer = document.getElementById('suggested-routes');
+                    suggestedContainer.innerHTML = '<div class="suggested-title"><i class="fas fa-bus"></i>Available Live Routes</div>';
+                    
+                    if (matchingRoutes.length > 0) {
+                        matchingRoutes.forEach(([key, route]) => {
+                            const suggestedRoute = document.createElement('div');
+                            suggestedRoute.className = 'suggested-route';
+                            suggestedRoute.innerHTML = `
+                                <div class="suggested-route-header">
+                                    <div class="suggested-route-name">${route.name}</div>
+                                    <div class="route-number">${route.busNumber}</div>
+                                </div>
+                                <div class="suggested-route-details">
+                                    <div><i class="fas fa-road"></i> Distance: ${route.distance}</div>
+                                    <div><i class="fas fa-clock"></i> Time: ${route.time}</div>
+                                    <div><i class="fas fa-indian-rupee-sign"></i> Fare: ${route.fare}</div>
+                                    <div><i class="fas fa-sync-alt"></i> Frequency: ${route.frequency}</div>
+                                </div>
+                                <button class="suggested-route-select" data-route="${key}">
+                                    <i class="fas fa-satellite-dish"></i> Track Live
+                                </button>
+                            `;
+                            suggestedContainer.appendChild(suggestedRoute);
+                        });
+                        // Re-attach event listeners to new buttons
+                        document.querySelectorAll('.suggested-route-select').forEach(button => {
+                            button.addEventListener('click', () => {
+                                const route = button.getAttribute('data-route');
+                                document.getElementById('route-screen').classList.remove('active');
+                                document.getElementById('map-screen').classList.add('active');
+                                initMap(route);
+                            });
+                        });
+                    } else {
+                        suggestedContainer.innerHTML += '<div class="muted" style="padding: 20px; text-align: center;">No direct routes found between these locations. Try popular routes below.</div>';
+                    }
+                    
+                    document.getElementById('suggested-routes').style.display = 'block';
+                    
+                    // Scroll to suggested routes
+                    document.getElementById('suggested-routes').scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start'
+                    });
+                } else {
+                    showToast('Please select both source and destination');
+                }
+            });
+            
+            document.getElementById('back-button').addEventListener('click', () => {
+                document.getElementById('map-screen').classList.remove('active');
+                // Return to appropriate screen based on user type
+                if (currentUserType === 'conductor') {
+                    document.getElementById('conductor-screen').classList.add('active');
+                } else {
+                    document.getElementById('route-screen').classList.add('active');
+                }
+            });
+            
+            document.getElementById('info-button').addEventListener('click', () => {
+                document.getElementById('bus-modal').style.display = 'flex';
+            });
+            
+            document.getElementById('close-modal').addEventListener('click', () => {
+                document.getElementById('bus-modal').style.display = 'none';
+            });
+            
+            document.getElementById('live-tracking-button').addEventListener('click', toggleLiveTracking);
+
+            // Login tab switching
+            const tabUser = document.getElementById('tab-user');
+            const tabCond = document.getElementById('tab-conductor');
+            const userForm = document.getElementById('user-form');
+            const condForm = document.getElementById('conductor-form');
+            tabUser.addEventListener('click', () => {
+                tabUser.classList.add('active');
+                tabCond.classList.remove('active');
+                userForm.style.display = 'block';
+                condForm.style.display = 'none';
+            });
+            tabCond.addEventListener('click', () => {
+                tabCond.classList.add('active');
+                tabUser.classList.remove('active');
+                condForm.style.display = 'block';
+                userForm.style.display = 'none';
+            });
+
+            // User login
+            document.getElementById('user-login').addEventListener('click', () => {
+                const mobile = (document.getElementById('user-mobile').value || '').trim();
+                if (!/^\d{10}$/.test(mobile)) {
+                    showToast('Enter a valid 10-digit mobile');
+                    return;
+                }
+                currentUserType = 'user';
+                document.getElementById('login-screen').classList.remove('active');
+                document.getElementById('route-screen').classList.add('active');
+                // Optionally auto-detect location now
+                setTimeout(detectLocation, 300);
+            });
+
+            // Conductor login (demo credentials: admin / admin@123)
+            document.getElementById('conductor-login').addEventListener('click', () => {
+                const u = (document.getElementById('conductor-username').value || '').trim();
+                const p = (document.getElementById('conductor-password').value || '').trim();
+                if (!u || !p) { showToast('Enter username and password'); return; }
+                // Demo validation
+                if (u !== 'admin' || p !== 'admin@123') {
+                    showToast('Invalid credentials. Try admin / admin@123');
+                    return;
+                }
+                currentUserType = 'conductor';
+                document.getElementById('login-screen').classList.remove('active');
+                document.getElementById('conductor-screen').classList.add('active');
+                showToast('Welcome, Conductor Admin');
+                // Restore conductor state
+                document.getElementById('passenger-count').value = conductorState.passengerCount || '';
+                document.getElementById('delay-mins').value = conductorState.delayMins || '';
+                document.getElementById('delay-reason').value = conductorState.delayReason || '';
+                document.getElementById('ride-toggle').textContent = isRideActive ? 'End Ride' : 'Start Ride';
+            });
+
+            // Conductor actions
+            document.getElementById('ride-toggle').addEventListener('click', () => {
+                isRideActive = !isRideActive;
+                const btn = document.getElementById('ride-toggle');
+                if (isRideActive) {
+                    btn.textContent = 'End Ride';
+                    showToast('Live tracking turned ON');
+                    isLiveTracking = true;
+                } else {
+                    btn.textContent = 'Start Ride';
+                    showToast('Live tracking turned OFF');
+                    isLiveTracking = false;
+                }
+            });
+            // Save passenger count on change
+            document.getElementById('passenger-count').addEventListener('input', (e) => {
+                conductorState.passengerCount = e.target.value;
+            });
+            document.getElementById('report-delay').addEventListener('click', () => {
+                const mins = document.getElementById('delay-mins').value || '0';
+                const reason = document.getElementById('delay-reason').value || 'No reason provided';
+                conductorState.delayMins = mins;
+                conductorState.delayReason = reason;
+                showToast(`Delay reported: ${mins} min - ${reason}`);
+            });
+            document.getElementById('conductor-to-map').addEventListener('click', () => {
+                document.getElementById('conductor-screen').classList.remove('active');
+                document.getElementById('map-screen').classList.add('active');
+                // Default to first route
+                const firstKey = Object.keys(punjabRoutes)[0];
+                initMap(firstKey);
+            });
+            document.getElementById('conductor-logout').addEventListener('click', () => {
+                currentUserType = null;
+                isRideActive = false;
+                // Reset conductor state on logout
+                conductorState = { passengerCount: 0, delayMins: 0, delayReason: '' };
+                document.getElementById('passenger-count').value = '';
+                document.getElementById('delay-mins').value = '';
+                document.getElementById('delay-reason').value = '';
+                document.getElementById('ride-toggle').textContent = 'Start Ride';
+                document.getElementById('conductor-screen').classList.remove('active');
+                document.getElementById('login-screen').classList.add('active');
+                showToast('Logged out');
+            });
+            
+            // Header back buttons
+            document.getElementById('route-back-btn').addEventListener('click', () => {
+                document.getElementById('route-screen').classList.remove('active');
+                document.getElementById('login-screen').classList.add('active');
+            });
+            
+            document.getElementById('conductor-back-btn').addEventListener('click', () => {
+                document.getElementById('conductor-screen').classList.remove('active');
+                document.getElementById('login-screen').classList.add('active');
+            });
+            
+            // Handle orientation changes
+            function handleOrientationChange() {
+                const newOrientation = window.orientation || (window.innerWidth > window.innerHeight ? 90 : 0);
+                
+                if (newOrientation !== currentOrientation) {
+                    currentOrientation = newOrientation;
+                    
+                    // Check if map is active and resize it
+                    if (isMapInitialized && map) {
+                        setTimeout(() => {
+                            map.invalidateSize();
+                            if (currentRoute && routePolyline) {
+                                map.fitBounds(routePolyline.getBounds());
+                            }
+                        }, 100);
+                    }
+                    
+                    // Show orientation toast
+                    const orientationText = Math.abs(newOrientation) === 90 ? 'Landscape' : 'Portrait';
+                    showToast(`Switched to ${orientationText} mode`);
+                }
+            }
+            
+            // Listen for orientation changes
+            window.addEventListener('orientationchange', handleOrientationChange);
+            window.addEventListener('resize', handleOrientationChange);
+        });
+    </script>
+    <div class="toast" id="app-toast"></div>
+</body>
+</html>
